@@ -17,6 +17,7 @@ from src.database import (
     get_quality_results,
     get_run_history,
 )
+from src.pipeline import run_pipeline
 from src.ui import (
     ACCENT_STONE,
     ACCENT_TEAL,
@@ -53,6 +54,17 @@ def _fingerprint(path: Path) -> str:
         return "missing"
     stats = path.stat()
     return f"{stats.st_mtime_ns}:{stats.st_size}"
+
+
+@st.cache_resource(show_spinner=False)
+def _initialize_database(db_file: str) -> str:
+    """Create the first runtime snapshot once per deployed process."""
+
+    target = Path(db_file)
+    if target.exists():
+        return ""
+    summary = run_pipeline(db_path=target)
+    return summary.notice
 
 
 @st.cache_data(ttl=30, show_spinner=False)
@@ -610,6 +622,15 @@ def _render_sidebar(latest: dict[str, object] | None) -> str:
 
 
 db_path = database_path()
+bootstrap_error: Exception | None = None
+
+if not db_path.exists():
+    try:
+        with st.spinner("Preparing the first TTC data snapshot…"):
+            _initialize_database(str(db_path))
+    except Exception as exc:  # pragma: no cover - displayed as a recovery state
+        bootstrap_error = exc
+
 db_fingerprint = _fingerprint(db_path)
 latest_run: dict[str, object] | None = None
 healthy_run: dict[str, object] | None = None
@@ -632,10 +653,15 @@ if not db_path.exists():
     )
     section_heading(
         "Setup",
-        "The interface is ready, but the local pipeline database has not been created yet.",
+        "TrustLayer could not prepare its first data snapshot automatically.",
     )
     with st.container(border=True, key="tl-panel-setup"):
-        card_heading("Run the healthy pipeline", "Execute this command from the project root.")
+        card_heading(
+            "Run the healthy pipeline",
+            "For local recovery, execute this command from the project root.",
+        )
+        if bootstrap_error is not None:
+            st.error(f"Automatic initialization failed: {bootstrap_error}")
         st.code("python -m src.pipeline", language="powershell")
     st.stop()
 

@@ -178,6 +178,14 @@ The Overview should show 5,000 records, 11 passing checks, 0 warnings, 0 failure
 
 Use the Streamlit **⋮** menu to switch between System, Light, and Dark under **Theme**.
 
+## Deploy on Streamlit Community Cloud
+
+Create an app from this repository with branch `main` and entrypoint `app.py`.
+On the first cloud start, TrustLayer creates its runtime DuckDB snapshot automatically:
+it uses the current Toronto Open Data resource when available and falls back to the bundled
+sample if the source cannot be reached. The generated database and cache remain excluded from
+Git because they are runtime artifacts.
+
 ## Failure-demo walkthrough
 
 Keep Streamlit running in one PowerShell window and use a second window from the same project root.
